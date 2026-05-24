@@ -1,97 +1,158 @@
-# 💬 SentimentAnalyzer-AI
+# SentimentAnalyzer-AI
 
-> Real-time sentiment analysis with multi-dimensional scoring, social media monitoring, and trend visualization — powered by MiMo V2.5
+![SentimentAnalyzer-AI banner](assets/banner.png)
 
-## Why This Exists
+> **Powered by MiMo** — built on top of Xiaomi's [MiMo](https://platform.xiaomimimo.com) reasoning models for advanced sentiment analysis and language understanding.
 
-Understanding how people feel about your product, brand, or message has never been more critical — or more difficult. Social media generates billions of opinions daily across Twitter, Reddit, reviews, forums, and comment sections. Manual sentiment tracking is impossible at this scale, and naive keyword-based approaches fail catastrophically on sarcasm, context-dependent language, and nuanced emotional expressions.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Powered by MiMo](https://img.shields.io/badge/Powered%20by-MiMo-ff6b35.svg)](https://platform.xiaomimimo.com)
 
-SentimentAnalyzer-AI goes beyond simple positive/negative classification. Powered by MiMo V2.5's deep language understanding, it captures the full spectrum of sentiment — including mixed emotions, confidence levels, aspect-level opinions, and temporal trends. It understands that "This product is sick" might be a compliment and "Great, another update that breaks everything" is dripping with sarcasm.
+---
 
-The platform is designed for product managers, brand strategists, social media teams, and researchers who need to monitor public opinion in real time. Track sentiment across platforms, detect emerging crises before they trend, understand which features users love or hate, and measure the impact of campaigns — all through an intuitive social-media-themed dashboard.
+## Why MiMo
 
-## Architecture
+Sentiment analysis seems like a solved problem until you encounter real-world text. Sarcasm ("Oh great, another software update that breaks everything"), mixed sentiment ("The camera is amazing but the battery life is terrible"), domain-specific language ("This stock is sick" means bullish, not negative), and cultural nuance all defeat simple positive/negative classifiers. MiMo V2.5's reasoning capabilities handle these edge cases by understanding context, tone, and intent at a depth that statistical models cannot match.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                   SentimentAnalyzer-AI Pipeline                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐      │
-│  │              │    │              │    │              │      │
-│  │  Text Input  │───▶│ Preprocessor │───▶│  Sentiment   │      │
-│  │  (Social,    │    │   Engine     │    │    Model     │      │
-│  │   Reviews)   │    │              │    │              │      │
-│  │              │    │              │    │              │      │
-│  └──────────────┘    └──────────────┘    └──────┬───────┘      │
-│                                                 │              │
-│                                                 ▼              │
-│                  ┌──────────────┐    ┌──────────────┐          │
-│                  │              │    │              │          │
-│                  │ Aggregation  │───▶│  Dashboard   │          │
-│                  │   Engine     │    │  & Feed      │          │
-│                  │              │    │              │          │
-│                  └──────────────┘    └──────────────┘          │
-│                                                                 │
-│  Input: Raw text (reviews, posts, comments)                     │
-│  Output: Sentiment scores + Trends + Social feed                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+MiMo's multi-step reasoning is particularly valuable for aspect-based sentiment analysis. When a restaurant review says "The pasta was divine but we waited 45 minutes for a table," MiMo identifies two separate aspects (food quality: positive, wait time: negative) and attributes each sentiment correctly. This granular analysis is essential for businesses that need to understand *what* customers feel, not just *whether* they feel positive or negative overall.
 
-## Token Consumption Model
+The model also excels at sentiment trend analysis across large corpora. Instead of just scoring individual texts, MiMo can identify emerging sentiment shifts, correlate them with external events, and explain why public opinion is changing. This transforms sentiment analysis from a simple classification task into a strategic intelligence tool for brand management, product development, and market research.
 
-| Pipeline Stage          | Tokens per Run | Description                                          |
-|-------------------------|----------------|------------------------------------------------------|
-| ✂️ Preprocessor          | 50K            | Tokenization, cleaning, language detection, encoding |
-| 🧠 Sentiment Model      | 300K           | Multi-class classification, aspect extraction, NER   |
-| 📊 Aggregation & Viz    | 150K           | Trend computation, gauge rendering, feed generation  |
-| **Total**               | **500K**       | End-to-end sentiment analysis pipeline               |
+---
+
+## Token Consumption
+
+| Agent | Model | Tokens/run | Frequency | Daily/user |
+|---|---|---|---|---|
+| Sentiment Classifier | MiMo V2.5 | 1,500 | Per document | ~75,000 |
+| Aspect Extractor | MiMo V2.5 | 2,200 | Per document | ~110,000 |
+| Trend Analyzer | MiMo V2.5 | 3,500 | Per batch (hourly) | ~84,000 |
+
+---
+
+## What it does
+
+SentimentAnalyzer-AI processes text from reviews, social media, support tickets, and surveys, providing fine-grained sentiment classification (positive, negative, neutral, mixed), aspect-level sentiment extraction, emotion detection, and trend analysis. It handles 20+ languages and excels at sarcasm, irony, and context-dependent expressions.
+
+---
+
+## Why this exists
+
+Businesses sit on mountains of unstructured text feedback — app reviews, support tickets, social mentions, survey responses — that contains critical insights about customer satisfaction and product issues. Basic sentiment tools classify this as positive or negative and miss the nuance. SentimentAnalyzer-AI provides the depth of analysis needed to extract actionable intelligence from text at scale.
+
+---
 
 ## Features
 
-- **Text Input Analysis** — Paste text or enter comments for instant multi-dimensional sentiment scoring
-- **Sentiment Gauge** — Semi-circular visual gauge showing positive/negative/neutral breakdown in real time
-- **Trend Charts** — Track sentiment over time with CSS-based sparklines and area charts
-- **Social Feed Monitor** — Live stream of posts with per-message sentiment tags and color coding
-- **Aspect-Level Analysis** — Identifies sentiment toward specific features, topics, or entities within text
-- **Sarcasm Detection** — Advanced understanding of irony, sarcasm, and context-dependent language
-- **Multi-Platform Scoring** — Aggregate sentiment across Twitter, Reddit, reviews, and custom sources
-- **Crisis Detection** — Alerts when negative sentiment spikes beyond normal variance thresholds
-- **Social Media Theme** — Modern, colorful interface inspired by popular social platforms
+- **Fine-grained sentiment** — positive, negative, neutral, and mixed classifications with confidence scores
+- **Aspect-based analysis** — extract sentiment per product feature or topic
+- **Emotion detection** — joy, anger, frustration, surprise, and more
+- **Sarcasm and irony handling** — MiMo's reasoning catches non-literal expressions
+- **Multi-language support** — 20+ languages with native-quality analysis
+- **Trend tracking** — monitor sentiment shifts over time with change-point detection
+- **Batch and streaming** — process historical data or live text streams
+- **Customizable taxonomy** — define your own aspects and categories per domain
+- **Competitive analysis** — compare sentiment across brands or products
+- **Summary generation** — MiMo produces executive summaries of sentiment trends
+
+---
 
 ## Tech Stack
 
-- **Frontend** — Vanilla HTML5 / CSS3 / JavaScript (ES6+)
-- **Styling** — Social-media-inspired CSS with gradients, cards, and animated gauges
-- **Logic** — Client-side NLP processing, sentiment scoring, and chart rendering
-- **AI Engine** — MiMo V2.5 by Nous Research
-- **Deployment** — Static files, works in any modern browser
+- **Python 3.11+** — core runtime
+- **MiMo V2.5** — sentiment reasoning and language understanding via Xiaomi API
+- **FastAPI** — REST API for real-time analysis
+- **Apache Kafka** — streaming text ingestion
+- **Elasticsearch** — indexed text storage and search
+- **PostgreSQL** — sentiment results and trend storage
+- **Plotly** — sentiment trend visualizations
+- **Docker** — deployment
 
-## Quick Start
+---
+
+## Quickstart
 
 ```bash
-# Clone the repository
-git clone https://github.com/nousresearch/SentimentAnalyzer-AI.git
+# Clone and install
+git clone https://github.com/yuroo-shield/SentimentAnalyzer-AI.git
 cd SentimentAnalyzer-AI
+pip install -e ".[dev]"
 
-# Open directly in your browser
-open index.html
+# Set your MiMo API key
+export MIMO_API_KEY="your-key-here"
 
-# Or serve locally
-python3 -m http.server 8080
-# Navigate to http://localhost:8080
+# Analyze a single text
+sentiment analyze "The product is great but shipping was painfully slow"
+
+# Batch analyze a CSV of reviews
+sentiment batch \
+  --input reviews.csv \
+  --text-column review_text \
+  --aspects "price,quality,delivery,support" \
+  --output results.csv
+
+# Start the API server
+sentiment serve --port 8080
+
+# Analyze via API
+curl http://localhost:8080/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Absolutely love this app, best purchase this year!", "aspects": true}'
+
+# Generate a trend report
+sentiment trends \
+  --source reviews.csv \
+  --period monthly \
+  --output trend_report.html
 ```
+
+---
 
 ## Project Structure
 
 ```
 SentimentAnalyzer-AI/
-├── index.html          # Social dashboard with gauge, feed, & input panels
-├── style.css           # Social media theme with gradient cards & animations
-├── app.js              # NLP pipeline, sentiment engine, & visualization logic
-└── README.md           # This file
+├── assets/
+│   └── banner.png
+├── sentiment/
+│   ├── __init__.py
+│   ├── classifier.py      # MiMo-powered sentiment classification
+│   ├── aspects.py         # Aspect-based sentiment extraction
+│   ├── emotions.py        # Emotion detection engine
+│   ├── trends.py          # Sentiment trend analysis
+│   ├── batch.py           # Batch processing pipeline
+│   ├── summary.py         # Executive summary generation
+│   ├── api.py             # FastAPI REST endpoints
+│   └── config.py          # Configuration management
+├── connectors/
+│   ├── twitter.py         # Social media ingestion
+│   ├── reviews.py         # Review platform connectors
+│   └── surveys.py         # Survey data importers
+├── tests/
+│   ├── test_classifier.py
+│   ├── test_aspects.py
+│   ├── test_trends.py
+│   └── conftest.py
+├── docker-compose.yml
+├── pyproject.toml
+└── README.md
 ```
 
 ---
 
-> Built with MiMo V2.5 — [Nous Research](https://nousresearch.com)
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines. Run the test suite before submitting PRs:
+
+```bash
+# Run tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=sentiment --cov-report=html
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
