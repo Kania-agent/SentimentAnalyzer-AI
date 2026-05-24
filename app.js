@@ -1,244 +1,435 @@
-/* SentimentAnalyzer-AI — App Logic */
+// SentimentAnalyzer-AI — Full Sentiment Analysis Tool
+// ============================================================
+
+const sentimentHistory = JSON.parse(localStorage.getItem('sa_history') || '[]');
+let lastAnalysis = null;
+
+// ---- Sentiment Dictionaries ----
+const POSITIVE_WORDS = new Set([
+  'good','great','excellent','amazing','wonderful','fantastic','awesome','love','loved','best',
+  'happy','beautiful','perfect','brilliant','outstanding','superb','nice','like','liked','enjoy',
+  'pleased','impressive','remarkable','incredible','delightful','magnificent','splendid','terrific',
+  'fabulous','awesome','phenomenal','stellar','exceptional','superior','top-notch','first-rate',
+  'positive','upbeat','cheerful','glad','thrilled','excited','grateful','satisfied','comfortable',
+  'recommend','recommended','pleasant','smooth','fast','quick','efficient','reliable','quality',
+  'elegant','stylish','innovative','creative','fun','entertaining','refreshing','charming','warm',
+  'friendly','helpful','supportive','kind','generous','caring','gentle','patient','tolerant'
+]);
+
+const NEGATIVE_WORDS = new Set([
+  'bad','terrible','awful','horrible','worst','hate','hated','poor','ugly','boring','slow',
+  'disappointing','disappointed','frustrating','frustrated','annoying','annoyed','useless',
+  'broken','defective','waste','problem','issue','fail','failed','failure','crash','crashed',
+  'error','bug','glitch','laggy','lag','expensive','overpriced','cheap','uncomfortable','painful',
+  'difficult','confusing','complicated','messy','ugly','rude','unfriendly','unhelpful',
+  'mediocre','average','bland','dull','lacking','insufficient','inadequate','subpar',
+  'horrendous','dreadful','atrocious','abysmal','disgraceful','pathetic','lousy','crappy',
+  'refund','complaint','unacceptable','neglect','neglected','dangerous','unsafe','risk'
+]);
+
+const INTENSIFIERS = new Set([
+  'very','extremely','incredibly','absolutely','totally','completely','utterly','really',
+  'truly','highly','deeply','remarkably','exceedingly','thoroughly','particularly','especially'
+]);
+
+const NEGATORS = new Set([
+  'not',"don't","doesn't","didn't","wasn't","weren't","isn't","aren't","no","never",
+  'neither','nor','hardly','barely','scarcely',"couldn't","wouldn't","shouldn't"
+]);
+
+// ---- Aspect Categories ----
+const ASPECT_KEYWORDS = {
+  'Quality': ['quality','material','build','construction','craftsmanship','finish','durable','durability','solid'],
+  'Service': ['service','staff','support','help','representative','agent','team','response','customer'],
+  'Price': ['price','cost','value','expensive','cheap','affordable','worth','money','budget','overpriced'],
+  'Performance': ['performance','speed','fast','slow','quick','efficient','powerful','responsive','lag'],
+  'Design': ['design','look','style','appearance','aesthetic','beautiful','ugly','elegant','sleek'],
+  'Usability': ['easy','difficult','intuitive','confusing','user-friendly','complicated','simple','convenient','accessible'],
+  'Delivery': ['delivery','shipping','arrived','fast','late','delayed','packaging','package','transit'],
+  'Reliability': ['reliable','reliability','consistent','dependable','stable','break','broken','defective']
+};
+
+// ---- Preset Texts ----
+const PRESETS = {
+  positive: "I absolutely love this product! The quality is outstanding and the design is beautiful. The customer service team was incredibly helpful when I had questions. It arrived quickly and the packaging was perfect. Highly recommend to anyone looking for something excellent. Best purchase I've made this year!",
+  negative: "Very disappointed with this purchase. The product arrived damaged and the quality is terrible. Customer service was unhelpful and rude when I tried to get a refund. It's overpriced for what you get. The design looks cheap and it stopped working after just two days. Avoid this at all costs.",
+  mixed: "The product itself is actually quite good and the design is sleek. Performance is impressive and it's very fast. However, the price is a bit expensive for what you get. Shipping was delayed and the packaging could be better. Customer support was okay but not great. Overall, decent but room for improvement.",
+  neutral: "The product was delivered on Tuesday. It comes in three colors and has a one-year warranty. The specifications include 8GB RAM and 256GB storage. It weighs approximately 1.5 pounds and measures 12 by 8 inches. The manual provides setup instructions in multiple languages.",
+  sarcastic: "Oh great, another 'premium' product that broke after one day. The 'customer service' that never responds is just the cherry on top. Nothing says 'quality' like a product that falls apart. Truly the best waste of money I've ever experienced. 10/10 would NOT recommend this disaster to anyone."
+};
+
+// ---- Initialization ----
 document.addEventListener('DOMContentLoaded', () => {
-    // Tabs
-    document.querySelectorAll('.pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-            document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
-            pill.classList.add('active');
-            document.getElementById(pill.dataset.tab).classList.add('active');
-        });
-    });
-
-    // Sentiment analyzer (keyword-based)
-    const positiveWords = ['love', 'amazing', 'great', 'fantastic', 'excellent', 'awesome', 'wonderful', 'best', 'happy', 'perfect', 'beautiful', 'brilliant', 'outstanding', 'impressive', 'superb', 'delighted', 'incredible', 'enjoy', 'thank', 'good', 'nice', 'well', 'recommend', 'satisfied', 'pleased'];
-    const negativeWords = ['hate', 'terrible', 'awful', 'horrible', 'worst', 'bad', 'poor', 'ugly', 'disappointed', 'disgusting', 'waste', 'boring', 'annoying', 'frustrating', 'broken', 'slow', 'useless', 'never', 'angry', 'sad', 'fail', 'problem', 'issue', 'error', 'crash'];
-
-    function analyzeSentiment(text) {
-        const lower = text.toLowerCase();
-        const words = lower.split(/\s+/);
-        let posCount = 0, negCount = 0;
-
-        words.forEach(w => {
-            const clean = w.replace(/[^a-z]/g, '');
-            if (positiveWords.includes(clean)) posCount++;
-            if (negativeWords.includes(clean)) negCount++;
-        });
-
-        const total = Math.max(posCount + negCount, 1);
-        const pos = Math.min(100, Math.round((posCount / Math.max(words.length * 0.15, 1)) * 100));
-        const neg = Math.min(100, Math.round((negCount / Math.max(words.length * 0.15, 1)) * 100));
-        const neu = Math.max(0, 100 - pos - neg);
-
-        // Normalize
-        const sum = pos + neg + neu || 1;
-        return {
-            positive: Math.round(pos / sum * 100),
-            neutral: Math.round(neu / sum * 100),
-            negative: Math.round(neg / sum * 100),
-            score: (pos - neg) / Math.max(words.length, 1),
-        };
-    }
-
-    function updateGauge(sentiment) {
-        const avg = sentiment.positive - sentiment.negative;
-        const angle = -90 + ((avg + 100) / 200) * 180;
-        const needle = document.getElementById('gauge-needle');
-        needle.setAttribute('transform', `rotate(${angle}, 100, 110)`);
-
-        // Update gauge segments
-        document.getElementById('gauge-negative').style.opacity = sentiment.negative > 0 ? 0.3 + (sentiment.negative / 100) * 0.7 : 0.2;
-        document.getElementById('gauge-neutral').style.opacity = sentiment.neutral > 0 ? 0.3 + (sentiment.neutral / 100) * 0.7 : 0.2;
-        document.getElementById('gauge-positive').style.opacity = sentiment.positive > 0 ? 0.3 + (sentiment.positive / 100) * 0.7 : 0.2;
-
-        // Label
-        const label = document.getElementById('gauge-label');
-        if (sentiment.positive > sentiment.negative * 2) {
-            label.textContent = 'Positive';
-            label.className = 'gauge-label positive';
-        } else if (sentiment.negative > sentiment.positive * 2) {
-            label.textContent = 'Negative';
-            label.className = 'gauge-label negative';
-        } else {
-            label.textContent = 'Mixed';
-            label.className = 'gauge-label neutral';
-        }
-
-        // Bars
-        document.getElementById('pos-bar').style.width = sentiment.positive + '%';
-        document.getElementById('neu-bar').style.width = sentiment.neutral + '%';
-        document.getElementById('neg-bar').style.width = sentiment.negative + '%';
-        document.getElementById('pos-val').textContent = sentiment.positive + '%';
-        document.getElementById('neu-val').textContent = sentiment.neutral + '%';
-        document.getElementById('neg-val').textContent = sentiment.negative + '%';
-
-        // Indicators
-        const indicators = [];
-        if (sentiment.positive > 60) indicators.push({ text: 'Strong positive tone', cls: 'positive' });
-        if (sentiment.negative > 60) indicators.push({ text: 'Strong negative tone', cls: 'negative' });
-        if (sentiment.neutral > 50) indicators.push({ text: 'Mostly neutral', cls: 'neutral' });
-        if (sentiment.positive > 40 && sentiment.negative > 20) indicators.push({ text: 'Mixed signals', cls: 'neutral' });
-
-        const text = document.getElementById('text-input').value.toLowerCase();
-        if (text.includes('!')) indicators.push({ text: 'Exclamation marks', cls: 'positive' });
-        if (text.includes('?')) indicators.push({ text: 'Contains questions', cls: 'neutral' });
-        if (/\b(all caps|CAPS)\b/.test(text) || text === text.toUpperCase() && text.length > 5) {
-            indicators.push({ text: 'ALL CAPS detected', cls: 'negative' });
-        }
-        if (text.includes('but') || text.includes('however') || text.includes('although')) {
-            indicators.push({ text: 'Contrast words found', cls: 'neutral' });
-        }
-
-        if (indicators.length === 0) indicators.push({ text: 'No strong indicators', cls: 'neutral' });
-
-        document.getElementById('indicators').innerHTML = indicators.map(i =>
-            `<span class="indicator ${i.cls}">${i.text}</span>`
-        ).join('');
-    }
-
-    // Analyze button
-    document.getElementById('analyze-btn').addEventListener('click', () => {
-        const text = document.getElementById('text-input').value.trim();
-        if (!text) return;
-        const sentiment = analyzeSentiment(text);
-        updateGauge(sentiment);
-    });
-
-    // Character count
-    document.getElementById('text-input').addEventListener('input', (e) => {
-        document.getElementById('char-count').textContent = e.target.value.length;
-    });
-
-    // Sample button
-    const samples = [
-        "I absolutely love this product! The quality is amazing and customer service was fantastic. Best purchase I've made this year!",
-        "Terrible experience. The product broke after one day and customer support was completely useless. Very disappointed.",
-        "It's okay, nothing special. Does what it's supposed to do but nothing impressive. Average product for the price.",
-        "Just received my order and I'm so impressed! The packaging was beautiful and the product exceeds all expectations. Highly recommend!",
-        "Worst purchase ever. Don't waste your money. The product is slow, buggy, and the instructions are confusing. Awful experience."
-    ];
-
-    document.getElementById('sample-btn').addEventListener('click', () => {
-        document.getElementById('text-input').value = samples[Math.floor(Math.random() * samples.length)];
-        document.getElementById('char-count').textContent = document.getElementById('text-input').value.length;
-    });
-
-    // Social Feed
-    const posts = [
-        { avatar: '👩‍💻', user: 'TechReview Pro', handle: '@techreviewpro', platform: 'twitter', time: '2m ago', text: 'Just tried the new AI-powered editor and it\'s absolutely incredible! The code suggestions are spot on. Game changer for productivity! 🚀', sentiment: 'positive', score: 92 },
-        { avatar: '👨‍🎨', user: 'Design Daily', handle: '@designdaily', platform: 'twitter', time: '5m ago', text: 'This software update broke half my plugins. Frustrating experience. The QA team needs to do better. #frustrated', sentiment: 'negative', score: -78 },
-        { avatar: '🏢', user: 'Sarah Miller', handle: 'sarah.miller', platform: 'linkedin', time: '12m ago', text: 'Excited to announce our team has reached a new milestone. Grateful for everyone\'s hard work and dedication over the past quarter.', sentiment: 'positive', score: 85 },
-        { avatar: '📱', user: 'AppFan2024', handle: 'appfan2024', platform: 'reddit', time: '18m ago', text: 'The new update is decent. Some nice features but nothing revolutionary. It works fine for basic tasks.', sentiment: 'neutral', score: 12 },
-        { avatar: '🎮', user: 'GameStream Live', handle: '@gamestreamlive', platform: 'twitter', time: '25m ago', text: 'Horrible lag issues tonight. The streaming quality is terrible and the app keeps crashing. Worst streaming experience ever.', sentiment: 'negative', score: -85 },
-        { avatar: '📚', user: 'BookWorm Reads', handle: '@bookwormreads', platform: 'reddit', time: '30m ago', text: 'This book recommendation algorithm is fantastic! Found three amazing books I never would have discovered. Love it! 📖', sentiment: 'positive', score: 88 },
-        { avatar: '💼', user: 'Startup Founder', handle: 'startupfounder', platform: 'linkedin', time: '35m ago', text: 'Mixed results from our latest experiment. Some positive indicators but also some concerning trends we need to address.', sentiment: 'neutral', score: 15 },
-        { avatar: '🎵', user: 'Music Critic', handle: '@musiccritic', platform: 'twitter', time: '40m ago', text: 'Absolutely stunning album! Every track is a masterpiece. This is going to be the album of the year, no doubt about it!', sentiment: 'positive', score: 95 },
-    ];
-
-    document.getElementById('feed-list').innerHTML = posts.map(p => `
-        <div class="feed-post">
-            <div class="feed-header">
-                <div class="feed-avatar">${p.avatar}</div>
-                <div>
-                    <div class="feed-user">${p.user}</div>
-                    <div class="feed-handle">${p.handle}</div>
-                </div>
-                <span class="feed-platform ${p.platform}">${p.platform}</span>
-                <span class="feed-time">${p.time}</span>
-            </div>
-            <div class="feed-text">${p.text}</div>
-            <div class="feed-sentiment ${p.sentiment}">
-                ${p.sentiment === 'positive' ? '😊' : p.sentiment === 'negative' ? '😠' : '😐'}
-                ${p.sentiment.charAt(0).toUpperCase() + p.sentiment.slice(1)} (${Math.abs(p.score)}%)
-            </div>
-        </div>
-    `).join('');
-
-    // Mini chart
-    const miniData = [65, 72, 58, 81, 45, 92, 78, 63, 88, 71, 55, 84, 69, 93, 76];
-    document.getElementById('mini-chart').innerHTML = miniData.map(v => {
-        const color = v > 70 ? 'var(--positive)' : v > 40 ? 'var(--neutral)' : 'var(--negative)';
-        return `<div class="mini-bar" style="height: ${v}%; background: ${color}"></div>`;
-    }).join('');
-
-    // Topics
-    document.getElementById('topics-list').innerHTML = [
-        ['#TechLaunch', '12.4K mentions'],
-        ['#AIUpdate', '8.7K mentions'],
-        ['#ProductReview', '6.2K mentions'],
-        ['#CustomerService', '3.1K mentions'],
-        ['#SoftwareBug', '2.8K mentions'],
-    ].map(([tag, count]) => `
-        <div class="topic-item">
-            <span class="topic-name">${tag}</span>
-            <span class="topic-mentions">${count}</span>
-        </div>
-    `).join('');
-
-    // Trend Chart
-    const trendData = [
-        { pos: 62, neu: 25, neg: 13 },
-        { pos: 58, neu: 28, neg: 14 },
-        { pos: 71, neu: 20, neg: 9 },
-        { pos: 65, neu: 22, neg: 13 },
-        { pos: 54, neu: 30, neg: 16 },
-        { pos: 68, neu: 21, neg: 11 },
-        { pos: 73, neu: 18, neg: 9 },
-        { pos: 60, neu: 27, neg: 13 },
-        { pos: 77, neu: 16, neg: 7 },
-        { pos: 70, neu: 20, neg: 10 },
-        { pos: 63, neu: 24, neg: 13 },
-        { pos: 81, neu: 14, neg: 5 },
-        { pos: 75, neu: 17, neg: 8 },
-        { pos: 69, neu: 21, neg: 10 },
-        { pos: 84, neu: 12, neg: 4 },
-    ];
-
-    const trendYSteps = 5;
-    document.getElementById('trend-y-axis').innerHTML = Array.from({ length: trendYSteps }, (_, i) => {
-        return `<span>${100 - i * 25}%</span>`;
-    }).join('');
-
-    const trendHours = ['8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM', '10PM'];
-    document.getElementById('trend-x-axis').innerHTML = trendHours.map(h => `<span>${h}</span>`).join('');
-
-    function renderTrend() {
-        document.getElementById('trend-area').innerHTML = `
-            <div class="trend-bars">
-                ${trendData.map(d => `
-                    <div class="trend-bar-group">
-                        <div class="trend-segment" style="height: ${d.pos}%; background: var(--positive)"></div>
-                        <div class="trend-segment" style="height: ${d.neu}%; background: var(--neutral)"></div>
-                        <div class="trend-segment" style="height: ${d.neg}%; background: var(--negative)"></div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
-
-    renderTrend();
-
-    const avgPos = Math.round(trendData.reduce((s, d) => s + d.pos, 0) / trendData.length);
-    const avgNeg = Math.round(trendData.reduce((s, d) => s + d.neg, 0) / trendData.length);
-
-    document.getElementById('trend-summary').textContent = `Average: ${avgPos}% positive, ${avgNeg}% negative`;
-
-    document.getElementById('trend-stats').innerHTML = `
-        <div class="trend-stat">
-            <div class="trend-stat-val" style="color: var(--positive)">${avgPos}%</div>
-            <div class="trend-stat-label">Avg Positive</div>
-        </div>
-        <div class="trend-stat">
-            <div class="trend-stat-val" style="color: var(--neutral)">${100 - avgPos - avgNeg}%</div>
-            <div class="trend-stat-label">Avg Neutral</div>
-        </div>
-        <div class="trend-stat">
-            <div class="trend-stat-val" style="color: var(--negative)">${avgNeg}%</div>
-            <div class="trend-stat-label">Avg Negative</div>
-        </div>
-        <div class="trend-stat">
-            <div class="trend-stat-val" style="color: var(--accent)">${posts.length}</div>
-            <div class="trend-stat-label">Posts Analyzed</div>
-        </div>
-    `;
+  document.getElementById('historyModal').style.display = 'none';
 });
+
+// ---- Core Analysis ----
+function analyzeText(text) {
+  if (!text || text.trim().length === 0) {
+    return { score: 0, sentiment: 'N/A', positive: 0, negative: 0, neutral: 0, keywords: [], aspects: {}, wordScores: [], rawScore: 0 };
+  }
+
+  const words = text.toLowerCase().replace(/[^a-z\s'-]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+  let totalScore = 0;
+  let posCount = 0, negCount = 0, intCount = 0;
+  const detectedKeywords = [];
+  const wordScores = [];
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    let wordScore = 0;
+    let type = 'neutral';
+    const isNegated = i > 0 && NEGATORS.has(words[i - 1]);
+    const isIntensified = i > 0 && INTENSIFIERS.has(words[i - 1]) || i > 1 && INTENSIFIERS.has(words[i - 2]);
+
+    if (POSITIVE_WORDS.has(word)) {
+      wordScore = isIntensified ? 1.5 : 1;
+      if (isNegated) { wordScore = -wordScore; type = 'negative'; negCount++; }
+      else { type = 'positive'; posCount++; }
+      detectedKeywords.push({ word, type, score: wordScore });
+    } else if (NEGATIVE_WORDS.has(word)) {
+      wordScore = isIntensified ? -1.5 : -1;
+      if (isNegated) { wordScore = Math.abs(wordScore); type = 'positive'; posCount++; }
+      else { type = 'negative'; negCount++; }
+      detectedKeywords.push({ word, type, score: wordScore });
+    } else if (INTENSIFIERS.has(word)) {
+      intCount++;
+    } else {
+      wordScore = 0;
+    }
+
+    totalScore += wordScore;
+    wordScores.push({ word, score: wordScore, type });
+  }
+
+  // Normalize score to -1 to 1
+  const maxPossible = Math.max(words.length, 1);
+  const normalizedScore = Math.max(-1, Math.min(1, totalScore / Math.max(maxPossible * 0.3, 1)));
+
+  // Calculate percentages
+  const total = posCount + negCount + 1; // +1 for neutral base
+  const posPct = Math.round((posCount / Math.max(total, 1)) * 100);
+  const negPct = Math.round((negCount / Math.max(total, 1)) * 100);
+  const neuPct = Math.max(0, 100 - posPct - negPct);
+
+  // Determine overall sentiment
+  let sentiment;
+  if (normalizedScore > 0.15) sentiment = 'Positive';
+  else if (normalizedScore < -0.15) sentiment = 'Negative';
+  else sentiment = 'Neutral';
+
+  // Aspect-based analysis
+  const aspects = analyzeAspects(text);
+
+  return {
+    score: normalizedScore,
+    sentiment,
+    positive: posPct,
+    negative: negPct,
+    neutral: neuPct,
+    keywords: detectedKeywords,
+    aspects,
+    wordScores,
+    rawScore: totalScore,
+    text
+  };
+}
+
+function analyzeAspects(text) {
+  const lowerText = text.toLowerCase();
+  const results = {};
+
+  Object.entries(ASPECT_KEYWORDS).forEach(([aspect, keywords]) => {
+    const found = keywords.filter(k => lowerText.includes(k));
+    if (found.length === 0) return;
+
+    // Find sentences containing aspect keywords
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    let aspectScore = 0;
+    let sentenceCount = 0;
+
+    sentences.forEach(sentence => {
+      const sLower = sentence.toLowerCase();
+      if (found.some(k => sLower.includes(k))) {
+        const words = sLower.replace(/[^a-z\s'-]/g, ' ').split(/\s+/).filter(w => w.length > 0);
+        let sentScore = 0;
+        for (let i = 0; i < words.length; i++) {
+          const isNegated = i > 0 && NEGATORS.has(words[i - 1]);
+          const isIntensified = (i > 0 && INTENSIFIERS.has(words[i-1])) || (i > 1 && INTENSIFIERS.has(words[i-2]));
+          if (POSITIVE_WORDS.has(words[i])) {
+            sentScore += (isIntensified ? 1.5 : 1) * (isNegated ? -1 : 1);
+          } else if (NEGATIVE_WORDS.has(words[i])) {
+            sentScore += (isIntensified ? -1.5 : -1) * (isNegated ? -1 : 1);
+          }
+        }
+        aspectScore += sentScore;
+        sentenceCount++;
+      }
+    });
+
+    if (sentenceCount > 0) {
+      const normalized = Math.max(-1, Math.min(1, aspectScore / (sentenceCount * 2)));
+      results[aspect] = { score: normalized, keywords: found, sentences: sentenceCount };
+    }
+  });
+
+  return results;
+}
+
+// ---- Realtime Analysis ----
+function analyzeRealtime() {
+  const text = document.getElementById('textInput').value;
+  const result = analyzeText(text);
+  lastAnalysis = result;
+
+  // Update score circle
+  const circle = document.getElementById('scoreCircle');
+  const scoreVal = document.getElementById('scoreValue');
+  const scoreLbl = document.getElementById('scoreLabel');
+  circle.className = 'score-circle ' + (result.score > 0.15 ? 'positive' : result.score < -0.15 ? 'negative' : 'neutral');
+  scoreVal.textContent = result.score.toFixed(2);
+  scoreLbl.textContent = result.sentiment;
+
+  // Update breakdown bars
+  document.getElementById('barPositive').style.width = result.positive + '%';
+  document.getElementById('valPositive').textContent = result.positive + '%';
+  document.getElementById('barNeutral').style.width = result.neutral + '%';
+  document.getElementById('valNeutral').textContent = result.neutral + '%';
+  document.getElementById('barNegative').style.width = result.negative + '%';
+  document.getElementById('valNegative').textContent = result.negative + '%';
+
+  // Keywords
+  const kwSection = document.getElementById('keywordsSection');
+  const kwList = document.getElementById('keywordsList');
+  if (result.keywords.length > 0) {
+    kwSection.style.display = 'block';
+    // Remove duplicates, keep highest score
+    const unique = {};
+    result.keywords.forEach(k => {
+      if (!unique[k.word] || Math.abs(k.score) > Math.abs(unique[k.word].score)) unique[k.word] = k;
+    });
+    kwList.innerHTML = Object.values(unique).map(k =>
+      `<span class="keyword-tag ${k.type}">${k.word} (${k.score > 0 ? '+' : ''}${k.score.toFixed(1)})</span>`
+    ).join('');
+  } else {
+    kwSection.style.display = 'none';
+  }
+
+  // Aspects
+  const aspSection = document.getElementById('aspectSection');
+  const aspList = document.getElementById('aspectList');
+  const aspectKeys = Object.keys(result.aspects);
+  if (aspectKeys.length > 0) {
+    aspSection.style.display = 'block';
+    aspList.innerHTML = aspectKeys.map(asp => {
+      const data = result.aspects[asp];
+      const pct = ((data.score + 1) / 2 * 100).toFixed(0);
+      const color = data.score > 0.15 ? '#4ade80' : data.score < -0.15 ? '#f87171' : '#60a5fa';
+      return `<div class="aspect-item">
+        <span class="aspect-name">${asp}</span>
+        <div class="aspect-bar-bg">
+          <div class="aspect-bar-center"></div>
+          ${data.score >= 0
+            ? `<div class="aspect-bar-pos" style="width:${(data.score/2*100).toFixed(0)}%;left:50%"></div>`
+            : `<div class="aspect-bar-neg" style="width:${(Math.abs(data.score)/2*100).toFixed(0)}%;right:50%"></div>`
+          }
+        </div>
+        <span class="aspect-score" style="color:${color}">${data.score > 0 ? '+' : ''}${data.score.toFixed(2)}</span>
+      </div>`;
+    }).join('');
+  } else {
+    aspSection.style.display = 'none';
+  }
+
+  // Word highlighting
+  const hlSection = document.getElementById('highlightSection');
+  const hlText = document.getElementById('highlightedText');
+  if (text.trim().length > 0 && result.wordScores.length > 0) {
+    hlSection.style.display = 'block';
+    hlText.innerHTML = result.wordScores.map(ws => {
+      const cls = ws.type === 'positive' ? 'hl-pos' : ws.type === 'negative' ? 'hl-neg' : ws.score !== 0 ? 'hl-int' : '';
+      return cls ? `<span class="${cls}">${esc(ws.word)}</span>` : esc(ws.word);
+    }).join(' ');
+  } else {
+    hlSection.style.display = 'none';
+  }
+
+  // Auto-save to history (debounced)
+  clearTimeout(analyzeRealtime._debounce);
+  analyzeRealtime._debounce = setTimeout(() => {
+    if (text.trim().length > 10) {
+      saveToHistory(text, result);
+    }
+  }, 2000);
+}
+
+// ---- Comparison Mode ----
+function toggleCompare() {
+  const panel = document.getElementById('comparePanel');
+  const btn = document.getElementById('btnCompare');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'block';
+    btn.classList.add('btn-primary');
+    btn.textContent = '🔀 Compare ON';
+  } else {
+    panel.style.display = 'none';
+    btn.classList.remove('btn-primary');
+    btn.textContent = '🔀 Compare Mode';
+  }
+}
+
+function analyzeComparison() {
+  const textA = document.getElementById('compareTextA').value;
+  const textB = document.getElementById('compareTextB').value;
+  const container = document.getElementById('compareResults');
+
+  if (!textA.trim() && !textB.trim()) {
+    container.innerHTML = '<p class="placeholder">Enter both texts to compare.</p>';
+    return;
+  }
+
+  const resultA = analyzeText(textA);
+  const resultB = analyzeText(textB);
+
+  const diff = Math.abs(resultA.score - resultB.score);
+  let verdict = '';
+  if (diff < 0.1) verdict = 'Both texts have <strong>similar</strong> sentiment.';
+  else if (resultA.score > resultB.score) verdict = `<strong>Text A</strong> is more positive by ${diff.toFixed(2)}`;
+  else verdict = `<strong>Text B</strong> is more positive by ${diff.toFixed(2)}`;
+
+  const colorA = resultA.score > 0.15 ? '#4ade80' : resultA.score < -0.15 ? '#f87171' : '#60a5fa';
+  const colorB = resultB.score > 0.15 ? '#4ade80' : resultB.score < -0.15 ? '#f87171' : '#60a5fa';
+
+  container.innerHTML = `
+    <div class="compare-row">
+      <div class="compare-card">
+        <div class="cc-label">Text A</div>
+        <div class="cc-score" style="color:${colorA}">${resultA.score.toFixed(2)}</div>
+        <div class="cc-label2">${resultA.sentiment}</div>
+      </div>
+      <div style="font-size:24px;color:#64748b">⚡</div>
+      <div class="compare-card">
+        <div class="cc-label">Text B</div>
+        <div class="cc-score" style="color:${colorB}">${resultB.score.toFixed(2)}</div>
+        <div class="cc-label2">${resultB.sentiment}</div>
+      </div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-card" style="min-width:100px">
+        <div class="cc-label">A Positive</div>
+        <div class="cc-score" style="color:#4ade80;font-size:18px">${resultA.positive}%</div>
+      </div>
+      <div class="compare-card" style="min-width:100px">
+        <div class="cc-label">A Negative</div>
+        <div class="cc-score" style="color:#f87171;font-size:18px">${resultA.negative}%</div>
+      </div>
+      <div class="compare-card" style="min-width:100px">
+        <div class="cc-label">B Positive</div>
+        <div class="cc-score" style="color:#4ade80;font-size:18px">${resultB.positive}%</div>
+      </div>
+      <div class="compare-card" style="min-width:100px">
+        <div class="cc-label">B Negative</div>
+        <div class="cc-score" style="color:#f87171;font-size:18px">${resultB.negative}%</div>
+      </div>
+    </div>
+    <div class="compare-verdict">${verdict}</div>`;
+}
+
+// ---- Presets ----
+function loadPreset() {
+  const key = document.getElementById('presetSelect').value;
+  if (PRESETS[key]) {
+    document.getElementById('textInput').value = PRESETS[key];
+    analyzeRealtime();
+  }
+}
+
+// ---- History ----
+function saveToHistory(text, result) {
+  const entry = {
+    text: text.substring(0, 200),
+    score: result.score,
+    sentiment: result.sentiment,
+    timestamp: Date.now()
+  };
+  // Avoid duplicates
+  const last = sentimentHistory[0];
+  if (last && last.text === entry.text) return;
+  sentimentHistory.unshift(entry);
+  if (sentimentHistory.length > 100) sentimentHistory.length = 100;
+  localStorage.setItem('sa_history', JSON.stringify(sentimentHistory));
+}
+
+function showHistory() {
+  const list = document.getElementById('historyList');
+  if (sentimentHistory.length === 0) {
+    list.innerHTML = '<p class="placeholder">No analysis history yet.</p>';
+  } else {
+    list.innerHTML = sentimentHistory.map(h => {
+      const color = h.score > 0.15 ? '#4ade80' : h.score < -0.15 ? '#f87171' : '#60a5fa';
+      const time = new Date(h.timestamp).toLocaleString();
+      return `<div class="history-entry">
+        <span class="history-text" title="${esc(h.text)}">${esc(h.text)}</span>
+        <span class="history-score" style="color:${color}">${h.score.toFixed(2)}</span>
+        <span class="history-time">${time}</span>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('historyModal').style.display = 'flex';
+}
+
+function closeHistory() {
+  document.getElementById('historyModal').style.display = 'none';
+}
+
+// ---- Export ----
+function exportAnalysis() {
+  const text = document.getElementById('textInput').value;
+  const result = analyzeText(text);
+  const exportData = {
+    text: result.text,
+    analysis: {
+      score: result.score,
+      sentiment: result.sentiment,
+      positive_pct: result.positive,
+      negative_pct: result.negative,
+      neutral_pct: result.neutral,
+      raw_score: result.rawScore
+    },
+    keywords: result.keywords,
+    aspects: result.aspects,
+    timestamp: new Date().toISOString(),
+    method: 'keyword-based-sentiment-analysis',
+    dictionary_size: { positive: POSITIVE_WORDS.size, negative: NEGATIVE_WORDS.size }
+  };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sentiment_analysis_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function clearAll() {
+  document.getElementById('textInput').value = '';
+  document.getElementById('scoreValue').textContent = '0.00';
+  document.getElementById('scoreLabel').textContent = 'N/A';
+  document.getElementById('scoreCircle').className = 'score-circle';
+  document.getElementById('barPositive').style.width = '0%';
+  document.getElementById('barNeutral').style.width = '0%';
+  document.getElementById('barNegative').style.width = '0%';
+  document.getElementById('valPositive').textContent = '0%';
+  document.getElementById('valNeutral').textContent = '0%';
+  document.getElementById('valNegative').textContent = '0%';
+  document.getElementById('keywordsSection').style.display = 'none';
+  document.getElementById('aspectSection').style.display = 'none';
+  document.getElementById('highlightSection').style.display = 'none';
+  lastAnalysis = null;
+}
+
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}

@@ -1,135 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SentimentAnalyzer-AI — Social Sentiment Analysis</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SentimentAnalyzer-AI — Sentiment Analysis Tool</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header class="top-bar">
-        <div class="logo">
-            <span class="logo-icon">💭</span>
-            <h1>SentimentAnalyzer<span class="ai-badge">AI</span></h1>
+<div class="app-container">
+  <header class="app-header">
+    <h1>💬 SentimentAnalyzer-AI</h1>
+    <p class="subtitle">Real-Time Sentiment Analysis & Aspect Detection</p>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn btn-small" id="btnCompare" onclick="toggleCompare()">🔀 Compare Mode</button>
+    <button class="btn btn-small" onclick="showHistory()">📋 History</button>
+    <button class="btn btn-small" onclick="exportAnalysis()">💾 Export JSON</button>
+    <button class="btn btn-small btn-danger" onclick="clearAll()">🗑️ Clear</button>
+  </div>
+
+  <div class="main-layout">
+    <!-- Input Panel -->
+    <div class="panel input-panel">
+      <h3>✍️ Text Input</h3>
+      <div id="inputArea" class="input-area">
+        <div class="input-single">
+          <textarea id="textInput" placeholder="Enter text to analyze sentiment..." oninput="analyzeRealtime()"></textarea>
         </div>
-        <div class="nav-pills">
-            <button class="pill active" data-tab="analyze">Analyze</button>
-            <button class="pill" data-tab="feed">Social Feed</button>
-            <button class="pill" data-tab="trends">Trends</button>
+      </div>
+      <div class="input-controls">
+        <select id="presetSelect" onchange="loadPreset()">
+          <option value="">-- Load Preset Text --</option>
+          <option value="positive">Positive Review</option>
+          <option value="negative">Negative Review</option>
+          <option value="mixed">Mixed Feedback</option>
+          <option value="neutral">Neutral Statement</option>
+          <option value="sarcastic">Sarcastic Text</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="panel results-panel">
+      <h3>📊 Sentiment Score</h3>
+      <div class="score-display" id="scoreDisplay">
+        <div class="score-circle" id="scoreCircle">
+          <span class="score-value" id="scoreValue">0.00</span>
+          <span class="score-label" id="scoreLabel">N/A</span>
         </div>
-        <div class="live-badge">
-            <span class="live-dot"></span> Live Analysis
+        <div class="score-breakdown">
+          <div class="breakdown-item">
+            <span class="breakdown-label">Positive</span>
+            <div class="breakdown-bar-bg"><div class="breakdown-bar positive" id="barPositive" style="width:0%"></div></div>
+            <span class="breakdown-value" id="valPositive">0%</span>
+          </div>
+          <div class="breakdown-item">
+            <span class="breakdown-label">Neutral</span>
+            <div class="breakdown-bar-bg"><div class="breakdown-bar neutral" id="barNeutral" style="width:0%"></div></div>
+            <span class="breakdown-value" id="valNeutral">0%</span>
+          </div>
+          <div class="breakdown-item">
+            <span class="breakdown-label">Negative</span>
+            <div class="breakdown-bar-bg"><div class="breakdown-bar negative" id="barNegative" style="width:0%"></div></div>
+            <span class="breakdown-value" id="valNegative">0%</span>
+          </div>
         </div>
-    </header>
+      </div>
 
-    <main class="main-content">
-        <!-- Analyze Tab -->
-        <div class="tab-view active" id="analyze">
-            <div class="analyze-grid">
-                <!-- Input Panel -->
-                <div class="input-panel">
-                    <h2 class="panel-title">📝 Enter Text for Analysis</h2>
-                    <textarea id="text-input" class="text-area" placeholder="Paste a tweet, review, comment, or any text to analyze its sentiment...&#10;&#10;Try: &quot;I absolutely love this product! The quality is amazing and customer service was fantastic.&quot;"></textarea>
-                    <div class="input-actions">
-                        <div class="char-count"><span id="char-count">0</span> characters</div>
-                        <div class="input-btns">
-                            <button class="btn btn-secondary" id="sample-btn">Load Sample</button>
-                            <button class="btn btn-primary" id="analyze-btn">🔍 Analyze Sentiment</button>
-                        </div>
-                    </div>
-                </div>
+      <!-- Keywords -->
+      <div class="section" id="keywordsSection" style="display:none">
+        <h4>🔑 Detected Keywords</h4>
+        <div id="keywordsList" class="keywords-list"></div>
+      </div>
 
-                <!-- Results Panel -->
-                <div class="results-panel">
-                    <h2 class="panel-title">📊 Analysis Results</h2>
-                    <div class="gauge-container">
-                        <div class="gauge-wrapper">
-                            <svg class="gauge-svg" viewBox="0 0 200 120">
-                                <!-- Background arcs -->
-                                <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#1e293b" stroke-width="12" stroke-linecap="round"/>
-                                <!-- Segments -->
-                                <path id="gauge-negative" d="M 20 110 A 80 80 0 0 1 65 38" fill="none" stroke="#ef4444" stroke-width="12" stroke-linecap="round" opacity="0.3"/>
-                                <path id="gauge-neutral" d="M 65 38 A 80 80 0 0 1 135 38" fill="none" stroke="#f59e0b" stroke-width="12" stroke-linecap="round" opacity="0.3"/>
-                                <path id="gauge-positive" d="M 135 38 A 80 80 0 0 1 180 110" fill="none" stroke="#10b981" stroke-width="12" stroke-linecap="round" opacity="0.3"/>
-                                <!-- Needle -->
-                                <line id="gauge-needle" x1="100" y1="110" x2="100" y2="40" stroke="#e2e8f0" stroke-width="2" stroke-linecap="round" transform="rotate(0, 100, 110)"/>
-                                <circle cx="100" cy="110" r="4" fill="#e2e8f0"/>
-                            </svg>
-                            <div class="gauge-label" id="gauge-label">—</div>
-                        </div>
-                    </div>
+      <!-- Aspect Sentiment -->
+      <div class="section" id="aspectSection" style="display:none">
+        <h4>🎯 Aspect-Based Sentiment</h4>
+        <div id="aspectList" class="aspect-list"></div>
+      </div>
 
-                    <div class="score-breakdown" id="score-breakdown">
-                        <div class="score-row">
-                            <span class="score-dot positive"></span>
-                            <span class="score-label">Positive</span>
-                            <span class="score-bar"><span class="score-bar-fill positive" id="pos-bar" style="width:0%"></span></span>
-                            <span class="score-val" id="pos-val">0%</span>
-                        </div>
-                        <div class="score-row">
-                            <span class="score-dot neutral"></span>
-                            <span class="score-label">Neutral</span>
-                            <span class="score-bar"><span class="score-bar-fill neutral" id="neu-bar" style="width:0%"></span></span>
-                            <span class="score-val" id="neu-val">0%</span>
-                        </div>
-                        <div class="score-row">
-                            <span class="score-dot negative"></span>
-                            <span class="score-label">Negative</span>
-                            <span class="score-bar"><span class="score-bar-fill negative" id="neg-bar" style="width:0%"></span></span>
-                            <span class="score-val" id="neg-val">0%</span>
-                        </div>
-                    </div>
+      <!-- Word-level highlighting -->
+      <div class="section" id="highlightSection" style="display:none">
+        <h4>🖍️ Word-Level Sentiment</h4>
+        <div id="highlightedText" class="highlighted-text"></div>
+      </div>
+    </div>
+  </div>
 
-                    <div class="details-box" id="details-box">
-                        <h4>Key Indicators</h4>
-                        <div class="indicators" id="indicators"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <!-- Comparison Mode -->
+  <div class="panel compare-panel" id="comparePanel" style="display:none">
+    <h3>🔀 Comparison Mode</h3>
+    <div class="compare-inputs">
+      <div class="compare-input">
+        <h4>Text A</h4>
+        <textarea id="compareTextA" placeholder="Enter first text..." oninput="analyzeComparison()"></textarea>
+      </div>
+      <div class="compare-input">
+        <h4>Text B</h4>
+        <textarea id="compareTextB" placeholder="Enter second text..." oninput="analyzeComparison()"></textarea>
+      </div>
+    </div>
+    <div class="compare-results" id="compareResults">
+      <p class="placeholder">Enter both texts to compare.</p>
+    </div>
+  </div>
 
-        <!-- Feed Tab -->
-        <div class="tab-view" id="feed">
-            <div class="feed-layout">
-                <div class="feed-main">
-                    <h2 class="panel-title">📱 Social Media Feed Monitor</h2>
-                    <div class="feed-list" id="feed-list"></div>
-                </div>
-                <div class="feed-sidebar">
-                    <div class="panel-box">
-                        <h4>📊 Hourly Sentiment</h4>
-                        <div class="mini-chart" id="mini-chart"></div>
-                    </div>
-                    <div class="panel-box">
-                        <h4>🔥 Trending Topics</h4>
-                        <div class="topics-list" id="topics-list"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <!-- History Modal -->
+  <div id="historyModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📋 Sentiment History</h3>
+        <button class="btn-close" onclick="closeHistory()">&times;</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </div>
+  </div>
+</div>
 
-        <!-- Trends Tab -->
-        <div class="tab-view" id="trends">
-            <h2 class="panel-title">📈 Sentiment Trends</h2>
-            <div class="trend-chart-container">
-                <div class="trend-header">
-                    <div class="trend-legend">
-                        <span class="legend-item"><span class="legend-dot positive"></span> Positive</span>
-                        <span class="legend-item"><span class="legend-dot neutral"></span> Neutral</span>
-                        <span class="legend-item"><span class="legend-dot negative"></span> Negative</span>
-                    </div>
-                    <div class="trend-summary" id="trend-summary"></div>
-                </div>
-                <div class="trend-chart" id="trend-chart">
-                    <div class="trend-y-axis" id="trend-y-axis"></div>
-                    <div class="trend-area" id="trend-area"></div>
-                </div>
-                <div class="trend-x-axis" id="trend-x-axis"></div>
-                <div class="trend-stats" id="trend-stats"></div>
-            </div>
-        </div>
-    </main>
-
-    <script src="app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
